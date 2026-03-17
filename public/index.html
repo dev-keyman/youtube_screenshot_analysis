@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>유튜브 화면 분석</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 상단 URL 바 */
+    #url-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    #url-input {
+      flex: 1;
+      padding: 8px 12px;
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+    }
+    #url-input:focus { border-color: #5a9fd4; }
+    #url-input::placeholder { color: #7a8a9a; }
+
+    #btn-download {
+      padding: 8px 18px;
+      background: #0f3460;
+      border: 1px solid #5a9fd4;
+      border-radius: 6px;
+      color: #5a9fd4;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    #btn-download:hover { background: #1a5a9a; }
+    #btn-download:disabled { opacity: 0.5; cursor: default; }
+
+    /* 메인 레이아웃 */
+    #main {
+      display: flex;
+      flex: 1;
+      gap: 10px;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    /* 패널 공통 */
+    .panel {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #a0b4c8;
+      border-bottom: 1px solid #0f3460;
+      background: #0d1b2e;
+      flex-shrink: 0;
+    }
+
+    /* 좌측 패널 */
+    #left-panel {
+      width: 48%;
+      flex-shrink: 0;
+    }
+
+    #video-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0f1e;
+      overflow: hidden;
+    }
+
+    #video-player {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+    }
+
+    #video-placeholder {
+      color: #4a5a6a;
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* 화면 분석 버튼 영역 */
+    #analyze-bar {
+      padding: 8px 10px;
+      border-top: 1px solid #0f3460;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+
+    #btn-analyze {
+      padding: 8px 16px;
+      background: #1a6b5a;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    #btn-analyze:hover { background: #22876f; }
+    #btn-analyze:disabled { opacity: 0.5; cursor: default; }
+
+    #log-output {
+      flex: 1;
+      background: #0a0f1e;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      color: #7acfb0;
+      overflow-y: auto;
+      max-height: 80px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* 우측 패널 */
+    #right-panel {
+      flex: 1;
+    }
+
+    #right-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    /* 토큰 정보 */
+    #token-info {
+      font-size: 12px;
+      color: #7a8a9a;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* 프롬프트 영역 */
+    #prompt-textarea {
+      width: 100%;
+      padding: 8px 10px;
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 13px;
+      resize: vertical;
+      outline: none;
+      min-height: 52px;
+      max-height: 100px;
+      flex-shrink: 0;
+    }
+    #prompt-textarea:focus { border-color: #5a9fd4; }
+
+    /* 설정 행 */
+    #settings-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #a0b4c8;
+    }
+
+    .setting-item label {
+      white-space: nowrap;
+    }
+
+    .help-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      background: #1a4a8a;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 14px;
+      font-size: 10px;
+      color: #a0b4c8;
+      cursor: help;
+    }
+
+    .setting-input {
+      padding: 4px 6px;
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      border-radius: 4px;
+      color: #e0e0e0;
+      font-size: 12px;
+      outline: none;
+      width: 70px;
+    }
+    .setting-select {
+      padding: 4px 6px;
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      border-radius: 4px;
+      color: #e0e0e0;
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* 미리보기 + 결과 영역 */
+    #preview-result {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #frame-preview-wrap {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #frame-preview {
+      width: 140px;
+      height: 90px;
+      object-fit: cover;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #0a0f1e;
+      display: none;
+    }
+
+    #frame-label {
+      font-size: 10px;
+      color: #5a6a7a;
+    }
+
+    #result-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 10px;
+      background: #0a0f1e;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #d0e0f0;
+    }
+
+    #result-area .placeholder {
+      color: #4a5a6a;
+      font-size: 12px;
+    }
+
+    /* 마크다운 스타일 */
+    #result-area h1, #result-area h2, #result-area h3 {
+      color: #7acfb0;
+      margin: 6px 0 4px;
+    }
+    #result-area strong { color: #a0d4f0; }
+    #result-area ul, #result-area ol { padding-left: 16px; }
+    #result-area li { margin: 2px 0; }
+    #result-area p { margin: 4px 0; }
+
+    /* 캔버스 (숨김) */
+    #capture-canvas { display: none; }
+
+    /* 다운로드 스피너 */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #5a9fd4;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 스크롤바 스타일 */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0a0f1e; }
+    ::-webkit-scrollbar-thumb { background: #1a4a8a; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 URL 바 -->
+  <div id="url-bar">
+    <input id="url-input" type="text" placeholder="https://www.youtube.com/watch?v=..." />
+    <button id="btn-download">다운로드</button>
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div id="main">
+
+    <!-- 좌측: 영상 플레이어 -->
+    <div class="panel" id="left-panel">
+      <div class="panel-title">영상 플레이어</div>
+      <div id="video-wrapper">
+        <video id="video-player" controls style="display:none;"></video>
+        <div id="video-placeholder">유튜브 URL을 입력하고 다운로드 버튼을 누르세요.</div>
+      </div>
+      <div id="analyze-bar">
+        <button id="btn-analyze" disabled>화면 분석</button>
+        <pre id="log-output"></pre>
+      </div>
+    </div>
+
+    <!-- 우측: 분석 결과 -->
+    <div class="panel" id="right-panel">
+      <div class="panel-title">
+        분석 결과
+        <span id="token-info" style="float:right;font-weight:normal;"></span>
+      </div>
+      <div id="right-content">
+        <textarea id="prompt-textarea" rows="2">Describe this image in detail. Include all visible elements: people, objects, text, background, setting, colors, and overall mood.</textarea>
+
+        <div id="settings-row">
+          <div class="setting-item">
+            <label>Max Tokens</label>
+            <span class="help-icon" title="생성할 최대 토큰 수">?</span>
+            <input class="setting-input" id="max-tokens" type="number" value="512" min="64" max="2048" step="64" />
+          </div>
+          <div class="setting-item">
+            <label>Temperature</label>
+            <span class="help-icon" title="0: 결정적, 높을수록 창의적">?</span>
+            <input class="setting-input" id="temperature" type="number" value="0" min="0" max="2" step="0.1" style="width:60px;" />
+          </div>
+          <div class="setting-item">
+            <label>이미지 크기</label>
+            <span class="help-icon" title="캡처할 프레임 크기 (클수록 정확하나 느림)">?</span>
+            <select class="setting-select" id="image-size">
+              <option value="224">224px</option>
+              <option value="336">336px</option>
+              <option value="448" selected>448px</option>
+              <option value="512">512px</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="preview-result">
+          <div id="frame-preview-wrap">
+            <img id="frame-preview" alt="캡처된 프레임" />
+            <span id="frame-label"></span>
+          </div>
+          <div id="result-area">
+            <span class="placeholder">분석 결과가 여기에 표시됩니다.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 숨겨진 캔버스 (프레임 캡처용) -->
+  <canvas id="capture-canvas"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
