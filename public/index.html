@@ -24,6 +24,16 @@
       padding: 10px 14px;
       background: #16213e;
       border-bottom: 1px solid #0f3460;
+      align-items: center;
+    }
+
+    #app-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #7acfb0;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
     }
 
     #url-input {
@@ -330,6 +340,7 @@
 
   <!-- 상단 URL 바 -->
   <div id="url-bar">
+    <span id="app-title">Moondream2 + Transformers.js 화면분석</span>
     <input id="url-input" type="text" placeholder="https://www.youtube.com/watch?v=..." />
     <button id="btn-download">다운로드</button>
   </div>
